@@ -2,6 +2,7 @@ package me.serce.panex;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
@@ -21,6 +22,8 @@ import java.nio.ByteOrder;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import static me.serce.panex.VectorIntrinsics.*;
+
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)
@@ -29,6 +32,19 @@ public class ChecksumBenchmark {
         String arch = System.getProperties().getProperty("os.arch");
         return "x86_64".equals(arch) || "amd64".equals(arch);
     }
+
+    static {
+        // for JNI method
+        System.loadLibrary("checksum");
+    }
+
+    static final MethodHandle sum2 = jdk.internal.panama.CodeSnippet.make(
+            "cpuid2", MethodType.methodType(int.class, int.class /*esi*/, int.class /*edi*/),
+            isX64(),
+            0x89, 0xF0, // mov    eax,esi
+            0x01, 0xF8  // add    eax,edi
+    );
+
 
 
     static final MethodHandle fastChecksum = jdk.internal.panama.CodeSnippet.make(
@@ -53,7 +69,6 @@ public class ChecksumBenchmark {
     static final VarHandle VH = MethodHandles.byteBufferViewVarHandle(long[].class, ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN);
 
 
-
     public static long getAddress(ByteBuffer buffy) {
         try {
             Field address = Buffer.class.getDeclaredField("address");
@@ -67,8 +82,12 @@ public class ChecksumBenchmark {
 
     private ByteBuffer buffer;
     //    @Param({"4", "32", "128", "512", "2048", "8096", "32384", "129536"})
-    @Param({"4", "8096", "129536"})
+    @Param({"32384"})
     private int size = 4;
+    private long address = 0;
+
+    private int a;
+    private int b;
 
     @Setup
     public void setup() {
@@ -77,6 +96,9 @@ public class ChecksumBenchmark {
         for (int i = 0; i < size / 4; i++) {
             buffer.putInt(random.nextInt());
         }
+        address = getAddress(buffer);
+        a = 5;
+        b = 6;
     }
 
     private static int plainImpl(ByteBuffer buffer, int size) {
@@ -87,20 +109,10 @@ public class ChecksumBenchmark {
         return (int) (Integer.toUnsignedLong(checksum) % 256);
     }
 
-    @Benchmark
-    public int plainJava() {
-        return plainImpl(buffer, size);
-    }
-
-    @Benchmark
-    public int varHandlesJava() {
-        return varHandlesImpl(buffer, size);
-    }
-
     private static int varHandlesImpl(ByteBuffer buffer, int size) {
         int checksum = 0;
-        int i = 0;
-        for (i = 0; i <= size - 8; i+=8) {
+        int i;
+        for (i = 0; i <= size - 8; i += 8) {
             long v = (long) VH.get(buffer, i);
             checksum += (v >> 56) +
                     (v >> 48) +
@@ -117,22 +129,98 @@ public class ChecksumBenchmark {
         return (int) (Integer.toUnsignedLong(checksum) % 256);
     }
 
-    @Benchmark
-    public int plainC_O2() throws Throwable {
-        return (int) plainC_O2.invoke(getAddress(buffer), size);
+    public static native int nativePlainChecksum(long address, int size);
+
+    private static int JAVA_avxChecksumAVX2(ByteBuffer buffer, long target, int targetLength) throws Throwable {
+        final Long4 zeroVec = Long4.make();
+        final Long4 oneVec = Long4.make(
+                0x0001000100010001L,
+                0x0001000100010001L,
+                0x0001000100010001L,
+                0x0001000100010001L);
+        Long4 accum = Long4.make();
+        int checksum = 0;
+        int offset = 0;
+
+        if (targetLength >= 32) {
+            for (; offset <= targetLength - 32; offset += 32) {
+                Long4 vec = _mm256_loadu_si256(target + offset);
+                Long4 vl = _mm256_unpacklo_epi8(vec, zeroVec);
+                Long4 vh = _mm256_unpackhi_epi8(vec, zeroVec);
+                // There's no "add and unpack" instruction but multiplying by
+                // one has the same effect and gets us unpacking from 16-bits to
+                // 32 bits for free.
+                accum = _mm256_add_epi32(accum, _mm256_madd_epi16(vl, oneVec));
+                accum = _mm256_add_epi32(accum, _mm256_madd_epi16(vh, oneVec));
+            }
+        }
+
+//        for (; offset < targetLength; ++offset) {
+//            checksum += (int) buffer.get(offset);
+//        }
+
+        // We could accomplish the same thing with horizontal add instructions as
+        // we did above but shifts and vertical adds have much lower instruction
+        // latency.
+        accum = _mm256_add_epi32(accum, _mm256_srli_si256_4(accum));
+        accum = _mm256_add_epi32(accum, _mm256_srli_si256_8(accum));
+        long checksum2 = (_mm256_extract_epi32_0(accum) + _mm256_extract_epi32_4(accum) + checksum);
+        return (int) (Integer.toUnsignedLong((int) checksum2) % 256);
     }
 
-    @Benchmark
-    public int plainC_O3() throws Throwable {
-        return (int) plainC_O3.invoke(getAddress(buffer), size);
-    }
+//
+//    @Benchmark
+//    public int plainJava() {
+//        return plainImpl(buffer, size);
+//    }
+//
+//    @Benchmark
+//    public int varHandlesJava() {
+//        return varHandlesImpl(buffer, size);
+//    }
+
+//    @Benchmark
+//    public int plainC_O2() throws Throwable {
+//        return (int) plainC_O2.invoke(address, size);
+//    }
+
+//    @Benchmark
+//    public int plainC_O3() throws Throwable {
+//        return (int) plainC_O3.invoke(address, size);
+//    }
+//
+//    @Benchmark
+//    public int jniCritical_plainC_O3() throws Throwable {
+//        return nativePlainChecksum(address, size);
+//    }
+//
+//    @Benchmark
+//    public int avx2Impl() throws Throwable {
+//        return (int) fastChecksum.invoke(address, size);
+//    }
+
+//    @Benchmark
+//    public int JAVA_avx2Impl() throws Throwable {
+//        return JAVA_avxChecksumAVX2(buffer, address, size);
+//    }
 
     @Benchmark
-    public int avx2Impl() throws Throwable {
-        return (int) fastChecksum.invoke(getAddress(buffer), size);
+    @CompilerControl(CompilerControl.Mode.PRINT)
+    public int sum2ben() throws Throwable {
+        return (int) sum2.invoke(a, b);
     }
+
+
 
     public static void main(String[] args) throws Throwable {
+        System.out.println(sum2.invoke(5, 6));
+//        ByteBuffer bb = ByteBuffer.allocate(8);
+//        bb.putShort((short) 1);
+//        bb.putShort((short) 1);
+//        bb.putShort((short) 1);
+//        bb.putShort((short) 1);
+//        System.out.println(bb.position(0).getLong());
+
         if (!isX64()) return; // Not supported
 
         int size = 151587856;
@@ -150,5 +238,7 @@ public class ChecksumBenchmark {
         System.out.println((int) plainC_O2.invoke(getAddress(buffer), size));
         System.out.println((int) plainC_O3.invoke(getAddress(buffer), size));
         System.out.println((int) fastChecksum.invoke(getAddress(buffer), size));
+        System.out.println(nativePlainChecksum(getAddress(buffer), size));
+        System.out.println(JAVA_avxChecksumAVX2(buffer, getAddress(buffer), size));
     }
 }

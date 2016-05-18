@@ -28,7 +28,7 @@ repositories {
 
 jmh {
     jmhVersion = '1.11.2'
-    jvmArgs = ''
+    jvmArgs = '-Djava.library.path=/home/serce/git/panama-article/src/jmh/java'
     verbosity = 'EXTRA'
     humanOutputFile = null
     warmupIterations = 2
