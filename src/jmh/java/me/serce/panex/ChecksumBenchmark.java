@@ -38,13 +38,13 @@ public class ChecksumBenchmark {
         System.loadLibrary("checksum");
     }
 
-    static final MethodHandle sum2 = jdk.internal.panama.CodeSnippet.make(
-            "cpuid2", MethodType.methodType(int.class, int.class /*esi*/, int.class /*edi*/),
-            isX64(),
-            0x89, 0xF0, // mov    eax,esi
-            0x01, 0xF8  // add    eax,edi
+    static final MethodHandle sum3 = jdk.internal.panama.CodeSnippet.make(
+            "sum3", MethodType.methodType(int.class, int.class /*rdi*/, int.class /*rsi*/, int.class /*rdx*/),
+            true, /* isSupported */
+            0x48, 0x89, 0xF0, // mov    rax,rsi
+            0x48, 0x01, 0xF8, // add    rax,rdi
+            0x48, 0x01, 0xD0  // add    rax,rdx
     );
-
 
 
     static final MethodHandle fastChecksum = jdk.internal.panama.CodeSnippet.make(
@@ -131,14 +131,16 @@ public class ChecksumBenchmark {
 
     public static native int nativePlainChecksum(long address, int size);
 
+    private static final Long4 ones = Long4.make(
+            0x0001000100010001L,
+            0x0001000100010001L,
+            0x0001000100010001L,
+            0x0001000100010001L);
+
     private static int JAVA_avxChecksumAVX2(ByteBuffer buffer, long target, int targetLength) throws Throwable {
-        final Long4 zeroVec = Long4.make();
-        final Long4 oneVec = Long4.make(
-                0x0001000100010001L,
-                0x0001000100010001L,
-                0x0001000100010001L,
-                0x0001000100010001L);
-        Long4 accum = Long4.make();
+        Long4 zeroVec = Long4.ZERO;
+        Long4 oneVec = ones;
+        Long4 accum = Long4.ZERO;
         int checksum = 0;
         int offset = 0;
 
@@ -155,9 +157,9 @@ public class ChecksumBenchmark {
             }
         }
 
-//        for (; offset < targetLength; ++offset) {
-//            checksum += (int) buffer.get(offset);
-//        }
+        for (; offset < targetLength; ++offset) {
+            checksum += (int) buffer.get(offset);
+        }
 
         // We could accomplish the same thing with horizontal add instructions as
         // we did above but shifts and vertical adds have much lower instruction
@@ -199,21 +201,20 @@ public class ChecksumBenchmark {
 //        return (int) fastChecksum.invoke(address, size);
 //    }
 
-//    @Benchmark
-//    public int JAVA_avx2Impl() throws Throwable {
-//        return JAVA_avxChecksumAVX2(buffer, address, size);
-//    }
-
     @Benchmark
-    @CompilerControl(CompilerControl.Mode.PRINT)
-    public int sum2ben() throws Throwable {
-        return (int) sum2.invoke(a, b);
+    public int JAVA_avx2Impl() throws Throwable {
+        return JAVA_avxChecksumAVX2(buffer, address, size);
     }
 
+//    @Benchmark
+//    @CompilerControl(CompilerControl.Mode.PRINT)
+//    public int sum2ben() throws Throwable {
+//        return (int) sum2.invoke(a, b);
+//    }
 
 
     public static void main(String[] args) throws Throwable {
-        System.out.println(sum2.invoke(5, 6));
+        System.out.println(sum3.invoke(5, 6, 7));
 //        ByteBuffer bb = ByteBuffer.allocate(8);
 //        bb.putShort((short) 1);
 //        bb.putShort((short) 1);
