@@ -2,7 +2,6 @@ package me.serce.panex;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
@@ -69,28 +68,24 @@ public class ChecksumBenchmark {
     static final VarHandle VH = MethodHandles.byteBufferViewVarHandle(long[].class, ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN);
 
 
-    public static long getAddress(ByteBuffer buffy) {
-        try {
-            Field address = Buffer.class.getDeclaredField("address");
-            address.setAccessible(true);
-            return address.getLong(buffy);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
+    public static long getAddress(ByteBuffer buffy) throws Throwable {
+        Field address = Buffer.class.getDeclaredField("address");
+        address.setAccessible(true);
+        return address.getLong(buffy);
     }
 
     private ByteBuffer buffer;
     //    @Param({"4", "32", "128", "512", "2048", "8096", "32384", "129536"})
-    @Param({"32384"})
+    @Param({"4", "8096", "129536"})
     private int size = 4;
     private long address = 0;
 
     private int a;
     private int b;
+    private int c;
 
     @Setup
-    public void setup() {
+    public void setup() throws Throwable {
         buffer = ByteBuffer.allocateDirect(size).order(ByteOrder.nativeOrder());
         ThreadLocalRandom random = ThreadLocalRandom.current();
         for (int i = 0; i < size / 4; i++) {
@@ -99,9 +94,10 @@ public class ChecksumBenchmark {
         address = getAddress(buffer);
         a = 5;
         b = 6;
+        b = 7;
     }
 
-    private static int plainImpl(ByteBuffer buffer, int size) {
+    private static int checksumPlainJava(ByteBuffer buffer, int size) {
         int checksum = 0;
         for (int i = 0; i < size; ++i) {
             checksum += buffer.get(i);
@@ -149,9 +145,7 @@ public class ChecksumBenchmark {
                 Long4 vec = _mm256_loadu_si256(target + offset);
                 Long4 vl = _mm256_unpacklo_epi8(vec, zeroVec);
                 Long4 vh = _mm256_unpackhi_epi8(vec, zeroVec);
-                // There's no "add and unpack" instruction but multiplying by
-                // one has the same effect and gets us unpacking from 16-bits to
-                // 32 bits for free.
+
                 accum = _mm256_add_epi32(accum, _mm256_madd_epi16(vl, oneVec));
                 accum = _mm256_add_epi32(accum, _mm256_madd_epi16(vh, oneVec));
             }
@@ -161,9 +155,6 @@ public class ChecksumBenchmark {
             checksum += (int) buffer.get(offset);
         }
 
-        // We could accomplish the same thing with horizontal add instructions as
-        // we did above but shifts and vertical adds have much lower instruction
-        // latency.
         accum = _mm256_add_epi32(accum, _mm256_srli_si256_4(accum));
         accum = _mm256_add_epi32(accum, _mm256_srli_si256_8(accum));
         long checksum2 = (_mm256_extract_epi32_0(accum) + _mm256_extract_epi32_4(accum) + checksum);
@@ -173,7 +164,7 @@ public class ChecksumBenchmark {
 //
 //    @Benchmark
 //    public int plainJava() {
-//        return plainImpl(buffer, size);
+//        return checksumPlainJava(buffer, size);
 //    }
 //
 //    @Benchmark
@@ -186,25 +177,25 @@ public class ChecksumBenchmark {
 //        return (int) plainC_O2.invoke(address, size);
 //    }
 
-//    @Benchmark
+    //    @Benchmark
 //    public int plainC_O3() throws Throwable {
 //        return (int) plainC_O3.invoke(address, size);
 //    }
 //
-//    @Benchmark
-//    public int jniCritical_plainC_O3() throws Throwable {
-//        return nativePlainChecksum(address, size);
-//    }
+    @Benchmark
+    public int jniCritical_plainC_O3() throws Throwable {
+        return nativePlainChecksum(address, size);
+    }
 //
 //    @Benchmark
 //    public int avx2Impl() throws Throwable {
 //        return (int) fastChecksum.invoke(address, size);
 //    }
 
-    @Benchmark
-    public int JAVA_avx2Impl() throws Throwable {
-        return JAVA_avxChecksumAVX2(buffer, address, size);
-    }
+//    @Benchmark
+//    public int JAVA_avx2Impl() throws Throwable {
+//        return JAVA_avxChecksumAVX2(buffer, address, size);
+//    }
 
 //    @Benchmark
 //    @CompilerControl(CompilerControl.Mode.PRINT)
@@ -212,9 +203,21 @@ public class ChecksumBenchmark {
 //        return (int) sum2.invoke(a, b);
 //    }
 
+    public static int sum(int a, int b, int c) {
+        return a + b + c;
+    }
+
+    public static native int sum_native(int a, int b, int c);
+
+
+    @Benchmark
+    public int benchSum3() throws Throwable {
+        return sum(a, b, c);
+    }
+
 
     public static void main(String[] args) throws Throwable {
-        System.out.println(sum3.invoke(5, 6, 7));
+        System.out.println();
 //        ByteBuffer bb = ByteBuffer.allocate(8);
 //        bb.putShort((short) 1);
 //        bb.putShort((short) 1);
@@ -234,7 +237,7 @@ public class ChecksumBenchmark {
         }
 
 
-        System.out.println(plainImpl(buffer, size));
+        System.out.println(checksumPlainJava(buffer, size));
         System.out.println(varHandlesImpl(buffer, size));
         System.out.println((int) plainC_O2.invoke(getAddress(buffer), size));
         System.out.println((int) plainC_O3.invoke(getAddress(buffer), size));

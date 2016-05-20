@@ -24,3 +24,16 @@ JNIEXPORT jint JNICALL JavaCritical_me_serce_panex_ChecksumBenchmark_nativePlain
     }
     return checksum % 256;
 }
+
+
+JNIEXPORT jint JNICALL Java_me_serce_panex_ChecksumBenchmark_sum_1native
+    (JNIEnv * env, jclass clz, jint a, jint b, jint c) {
+    return a+b+c;
+}
+
+JNIEXPORT jint JNICALL JavaCritical_me_serce_panex_ChecksumBenchmark_sum_1native
+    (jint a, jint b, jint c) {
+    a = 0;
+    b = 0;
+    return a/b;
+}

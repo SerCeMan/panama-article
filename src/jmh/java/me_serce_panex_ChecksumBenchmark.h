@@ -10,20 +10,18 @@ extern "C" {
 /*
  * Class:     me_serce_panex_ChecksumBenchmark
  * Method:    nativePlainChecksum
- * Signature: (JI)V
+ * Signature: (JI)I
  */
 JNIEXPORT jint JNICALL Java_me_serce_panex_ChecksumBenchmark_nativePlainChecksum
   (JNIEnv *, jclass, jlong, jint);
 
-JNIEXPORT jint JNICALL JavaCritical_me_serce_panex_ChecksumBenchmark_nativePlainChecksum
-(jlong, jint);
-
+/*
+ * Class:     me_serce_panex_ChecksumBenchmark
+ * Method:    sum_native
+ * Signature: (III)I
+ */
 JNIEXPORT jint JNICALL Java_me_serce_panex_ChecksumBenchmark_sum_1native
   (JNIEnv *, jclass, jint, jint, jint);
-//
-//JNIEXPORT jint JNICALL JavaCritical_me_serce_panex_ChecksumBenchmark_sum_1native
-//  (jint, jint, jint);
-
 
 #ifdef __cplusplus
 }

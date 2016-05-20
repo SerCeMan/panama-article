@@ -28,7 +28,11 @@ repositories {
 
 jmh {
     jmhVersion = '1.11.2'
-    jvmArgs = '-Djava.library.path=/home/serce/git/panama-article/src/jmh/java'
+    jvmArgs =
+            ' -Djava.library.path=/home/serce/git/panama-article/src/jmh/java ' +
+            ' -XX:+UnlockDiagnosticVMOptions ' +
+            ' -XX:PrintAssemblyOptions=intel ' +
+            ' -XX:CompileCommand=print,*ChecksumBenchmark.benchSum3'
     verbosity = 'EXTRA'
     humanOutputFile = null
     warmupIterations = 2
