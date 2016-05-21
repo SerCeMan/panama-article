@@ -15,15 +15,15 @@ JNIEXPORT jint JNICALL Java_me_serce_panex_ChecksumBenchmark_nativePlainChecksum
     return checksum % 256;
 }
 
-JNIEXPORT jint JNICALL JavaCritical_me_serce_panex_ChecksumBenchmark_nativePlainChecksum
-    (jlong addr, jint targetLength) {
-    char *target = reinterpret_cast<char *>(addr);
-    unsigned int checksum = 0;
-    for (int i = 0; i < targetLength; ++i) {
-        checksum += (unsigned int) target[i];
-    }
-    return checksum % 256;
-}
+//JNIEXPORT jint JNICALL JavaCritical_me_serce_panex_ChecksumBenchmark_nativePlainChecksum
+//    (jlong addr, jint targetLength) {
+//    char *target = reinterpret_cast<char *>(addr);
+//    unsigned int checksum = 0;
+//    for (int i = 0; i < targetLength; ++i) {
+//        checksum += (unsigned int) target[i];
+//    }
+//    return checksum % 256;
+//}
 
 
 JNIEXPORT jint JNICALL Java_me_serce_panex_ChecksumBenchmark_sum_1native
@@ -31,9 +31,9 @@ JNIEXPORT jint JNICALL Java_me_serce_panex_ChecksumBenchmark_sum_1native
     return a+b+c;
 }
 
-JNIEXPORT jint JNICALL JavaCritical_me_serce_panex_ChecksumBenchmark_sum_1native
-    (jint a, jint b, jint c) {
-    a = 0;
-    b = 0;
-    return a/b;
-}
+//JNIEXPORT jint JNICALL JavaCritical_me_serce_panex_ChecksumBenchmark_sum_1native
+//    (jint a, jint b, jint c) {
+//    a = 0;
+//    b = 0;
+//    return a/b;
+//}

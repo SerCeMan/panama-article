@@ -15,8 +15,8 @@ extern "C" {
 JNIEXPORT jint JNICALL Java_me_serce_panex_ChecksumBenchmark_nativePlainChecksum
   (JNIEnv *, jclass, jlong, jint);
 
-JNIEXPORT jint JNICALL JavaCritical_me_serce_panex_ChecksumBenchmark_nativePlainChecksum
-(jlong, jint);
+//JNIEXPORT jint JNICALL JavaCritical_me_serce_panex_ChecksumBenchmark_nativePlainChecksum
+//(jlong, jint);
 
 JNIEXPORT jint JNICALL Java_me_serce_panex_ChecksumBenchmark_sum_1native
   (JNIEnv *, jclass, jint, jint, jint);

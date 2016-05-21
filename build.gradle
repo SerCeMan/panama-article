@@ -32,12 +32,14 @@ jmh {
             ' -Djava.library.path=/home/serce/git/panama-article/src/jmh/java ' +
             ' -XX:+UnlockDiagnosticVMOptions ' +
             ' -XX:PrintAssemblyOptions=intel ' +
-            ' -XX:CompileCommand=print,*ChecksumBenchmark.benchSum3'
+            ' -XX:CompileCommand=print,*ChecksumBenchmark.plainJava'
     verbosity = 'EXTRA'
     humanOutputFile = null
     warmupIterations = 2
+    resultFormat = 'CSV'
+    profilers = ['gc']
 //    profilers = ['perfasm']
-    iterations = 3
+    iterations = 4
     fork = 1
 }
 

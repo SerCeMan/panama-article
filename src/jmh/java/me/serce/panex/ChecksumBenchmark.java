@@ -56,7 +56,7 @@ public class ChecksumBenchmark {
 
 
     static final MethodHandle plainC_O2 = jdk.internal.panama.CodeSnippet.make(
-            "cpuid2", MethodType.methodType(int.class, long.class /*esi*/, int.class /*edx*/),
+            "cpuid2", MethodType.methodType(int.class, long.class, int.class),
             isX64(),
             0x48, 0x85, 0xF6, 0x74, 0x1E, 0x48, 0x01, 0xFE, 0x31, 0xC0, 0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00, 0x0F, 0xBE, 0x17, 0x48, 0x83, 0xC7, 0x01, 0x01, 0xD0, 0x48, 0x39, 0xF7, 0x75, 0xF2, 0x0F, 0xB6, 0xC0, 0xEB, 0x02, 0x31, 0xC0);
 
@@ -97,7 +97,7 @@ public class ChecksumBenchmark {
         b = 7;
     }
 
-    private static int checksumPlainJava(ByteBuffer buffer, int size) {
+    private static int plainJavaChecksum(ByteBuffer buffer, int size) {
         int checksum = 0;
         for (int i = 0; i < size; ++i) {
             checksum += buffer.get(i);
@@ -164,38 +164,51 @@ public class ChecksumBenchmark {
 //
 //    @Benchmark
 //    public int plainJava() {
-//        return checksumPlainJava(buffer, size);
+//        return plainJavaChecksum(buffer, size);
 //    }
 //
 //    @Benchmark
 //    public int varHandlesJava() {
 //        return varHandlesImpl(buffer, size);
 //    }
-
+//
 //    @Benchmark
-//    public int plainC_O2() throws Throwable {
+//    public int codeSnippetChecksum() throws Throwable {
 //        return (int) plainC_O2.invoke(address, size);
 //    }
-
-    //    @Benchmark
-//    public int plainC_O3() throws Throwable {
+//
+//    @Benchmark
+//    public int codeSnippetChecksumO3() throws Throwable {
 //        return (int) plainC_O3.invoke(address, size);
 //    }
 //
-    @Benchmark
-    public int jniCritical_plainC_O3() throws Throwable {
-        return nativePlainChecksum(address, size);
-    }
 //
 //    @Benchmark
-//    public int avx2Impl() throws Throwable {
-//        return (int) fastChecksum.invoke(address, size);
+//    public int JNI_Checksum() throws Throwable {
+//        return nativePlainChecksum(address, size);
 //    }
 
+
 //    @Benchmark
-//    public int JAVA_avx2Impl() throws Throwable {
-//        return JAVA_avxChecksumAVX2(buffer, address, size);
+//    public long ea() throws Throwable {
+//        return dd();
 //    }
+//
+//    private static long dd() throws Throwable {
+//        Long4 l = Long4.ZERO;
+//        VectorIntrinsics._mm256_srli_si256_8(l);
+//        return l.extract(0);
+//    }
+
+    @Benchmark
+    public int avx2Impl() throws Throwable {
+        return (int) fastChecksum.invoke(address, size);
+    }
+
+    @Benchmark
+    public int JAVA_avx2Impl() throws Throwable {
+        return JAVA_avxChecksumAVX2(buffer, address, size);
+    }
 
 //    @Benchmark
 //    @CompilerControl(CompilerControl.Mode.PRINT)
@@ -203,17 +216,15 @@ public class ChecksumBenchmark {
 //        return (int) sum2.invoke(a, b);
 //    }
 
-    public static int sum(int a, int b, int c) {
-        return a + b + c;
-    }
+    public static int sum(int a, int b, int c) { return a + b + c; }
 
     public static native int sum_native(int a, int b, int c);
 
 
-    @Benchmark
-    public int benchSum3() throws Throwable {
-        return sum(a, b, c);
-    }
+//    @Benchmark
+//    public int benchSum3() throws Throwable {
+//        return sum(a, b, c);
+//    }
 
 
     public static void main(String[] args) throws Throwable {
@@ -237,7 +248,7 @@ public class ChecksumBenchmark {
         }
 
 
-        System.out.println(checksumPlainJava(buffer, size));
+        System.out.println(plainJavaChecksum(buffer, size));
         System.out.println(varHandlesImpl(buffer, size));
         System.out.println((int) plainC_O2.invoke(getAddress(buffer), size));
         System.out.println((int) plainC_O3.invoke(getAddress(buffer), size));
