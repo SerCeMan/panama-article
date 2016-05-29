@@ -1,13 +1,6 @@
 package me.serce.panex;
 
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Param;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.*;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -76,9 +69,13 @@ public class ChecksumBenchmark {
 
     private ByteBuffer buffer;
     //    @Param({"4", "32", "128", "512", "2048", "8096", "32384", "129536"})
-    @Param({"4", "8096", "129536"})
+    @Param({
+//            "4", "8096",
+            "129536"})
     private int size = 4;
     private long address = 0;
+    private ByteBuffer buf;
+    private long tmpBuffAddr;
 
     private int a;
     private int b;
@@ -95,6 +92,12 @@ public class ChecksumBenchmark {
         a = 5;
         b = 6;
         b = 7;
+
+        buf = ByteBuffer.allocateDirect(256).order(ByteOrder.nativeOrder());
+        for (int i = 0; i < 256 / 4; i++) {
+            buf.putInt(0);
+        }
+        tmpBuffAddr = getAddress(buf);
     }
 
     private static int plainJavaChecksum(ByteBuffer buffer, int size) {
@@ -132,28 +135,30 @@ public class ChecksumBenchmark {
             0x0001000100010001L,
             0x0001000100010001L,
             0x0001000100010001L);
+    private static final Long4 zero = Long4.make();
+    public static final int aaa = 1;
 
-    private static int JAVA_avxChecksumAVX2(ByteBuffer buffer, long target, int targetLength) throws Throwable {
-        Long4 zeroVec = Long4.ZERO;
-        Long4 oneVec = ones;
-        Long4 accum = Long4.ZERO;
+    @CompilerControl(CompilerControl.Mode.INLINE)
+    private static int JAVA_avxChecksumAVX2(ByteBuffer buffer, long target, int targetLength, long tmpBuffAddr) throws Throwable {
+        final Long4 zeroVec = Long4.ZERO;
+        final Long4 oneVec = ones;
         int checksum = 0;
         int offset = 0;
 
         if (targetLength >= 32) {
             for (; offset <= targetLength - 32; offset += 32) {
                 Long4 vec = _mm256_loadu_si256(target + offset);
-                Long4 vl = _mm256_unpacklo_epi8(vec, zeroVec);
-                Long4 vh = _mm256_unpackhi_epi8(vec, zeroVec);
-
-                accum = _mm256_add_epi32(accum, _mm256_madd_epi16(vl, oneVec));
-                accum = _mm256_add_epi32(accum, _mm256_madd_epi16(vh, oneVec));
+                Long4 accumIn = _mm256_loadu_si256(tmpBuffAddr);
+                Long4 accum2 = _mm256_add_epi32(accumIn, _mm256_madd_epi16(_mm256_unpacklo_epi8(vec, zeroVec), oneVec));
+                Long4 accum3 = _mm256_add_epi32(accum2, _mm256_madd_epi16(_mm256_unpackhi_epi8(vec, zeroVec), oneVec));
+                _mm256_storeu_si256(tmpBuffAddr, accum3);
             }
         }
+        Long4 accum = _mm256_loadu_si256(tmpBuffAddr);
 
-        for (; offset < targetLength; ++offset) {
-            checksum += (int) buffer.get(offset);
-        }
+//        for (; offset < targetLength; ++offset) {
+//            checksum += (int) buffer.get(offset);
+//        }
 
         accum = _mm256_add_epi32(accum, _mm256_srli_si256_4(accum));
         accum = _mm256_add_epi32(accum, _mm256_srli_si256_8(accum));
@@ -162,10 +167,10 @@ public class ChecksumBenchmark {
     }
 
 //
-//    @Benchmark
-//    public int plainJava() {
-//        return plainJavaChecksum(buffer, size);
-//    }
+    @Benchmark
+    public int plainJava() {
+        return plainJavaChecksum(buffer, size);
+    }
 //
 //    @Benchmark
 //    public int varHandlesJava() {
@@ -199,7 +204,7 @@ public class ChecksumBenchmark {
 //        VectorIntrinsics._mm256_srli_si256_8(l);
 //        return l.extract(0);
 //    }
-
+//
     @Benchmark
     public int avx2Impl() throws Throwable {
         return (int) fastChecksum.invoke(address, size);
@@ -207,7 +212,7 @@ public class ChecksumBenchmark {
 
     @Benchmark
     public int JAVA_avx2Impl() throws Throwable {
-        return JAVA_avxChecksumAVX2(buffer, address, size);
+        return JAVA_avxChecksumAVX2(buffer, address, size, tmpBuffAddr);
     }
 
 //    @Benchmark
@@ -216,7 +221,9 @@ public class ChecksumBenchmark {
 //        return (int) sum2.invoke(a, b);
 //    }
 
-    public static int sum(int a, int b, int c) { return a + b + c; }
+    public static int sum(int a, int b, int c) {
+        return a + b + c;
+    }
 
     public static native int sum_native(int a, int b, int c);
 
@@ -254,6 +261,6 @@ public class ChecksumBenchmark {
         System.out.println((int) plainC_O3.invoke(getAddress(buffer), size));
         System.out.println((int) fastChecksum.invoke(getAddress(buffer), size));
         System.out.println(nativePlainChecksum(getAddress(buffer), size));
-        System.out.println(JAVA_avxChecksumAVX2(buffer, getAddress(buffer), size));
+        System.out.println(JAVA_avxChecksumAVX2(buffer, getAddress(buffer), size, 0));
     }
 }
