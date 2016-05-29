@@ -156,9 +156,9 @@ public class ChecksumBenchmark {
         }
         Long4 accum = _mm256_loadu_si256(tmpBuffAddr);
 
-//        for (; offset < targetLength; ++offset) {
-//            checksum += (int) buffer.get(offset);
-//        }
+        for (; offset < targetLength; ++offset) {
+            checksum += (int) buffer.get(offset);
+        }
 
         accum = _mm256_add_epi32(accum, _mm256_srli_si256_4(accum));
         accum = _mm256_add_epi32(accum, _mm256_srli_si256_8(accum));
@@ -253,6 +253,8 @@ public class ChecksumBenchmark {
             long value = random.nextLong();
             buffer.putLong(value);
         }
+        ByteBuffer bb = ByteBuffer.allocateDirect(64).order(ByteOrder.nativeOrder());
+        bb.putLong(0);bb.putLong(0);bb.putLong(0);bb.putLong(0);
 
 
         System.out.println(plainJavaChecksum(buffer, size));
@@ -261,6 +263,6 @@ public class ChecksumBenchmark {
         System.out.println((int) plainC_O3.invoke(getAddress(buffer), size));
         System.out.println((int) fastChecksum.invoke(getAddress(buffer), size));
         System.out.println(nativePlainChecksum(getAddress(buffer), size));
-        System.out.println(JAVA_avxChecksumAVX2(buffer, getAddress(buffer), size, 0));
+        System.out.println(JAVA_avxChecksumAVX2(buffer, getAddress(buffer), size, getAddress(bb)));
     }
 }
