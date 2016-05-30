@@ -9,6 +9,43 @@ import java.lang.invoke.MethodType;
  */
 public class VectorIntrinsics {
 
+    private static final MethodHandle _mm256_add_epi16 = jdk.internal.panama.CodeSnippet.make(
+            "_mm256_add_epi16", MethodType.methodType(Long4.class, Long4.class, Long4.class /*esi*/),
+            true,
+            0xC5, 0xF5, 0xFD, 0xC0 // vpaddw ymm0,ymm1,ymm0
+    );
+    public static Long4 _mm256_add_epi16(Long4 l1, Long4 l2) throws Throwable {
+        return (Long4) _mm256_add_epi16.invokeExact(l1, l2);
+    }
+
+    private static final MethodHandle _mm256_hadd_epi16 = jdk.internal.panama.CodeSnippet.make(
+            "_mm256_hadd_epi16", MethodType.methodType(Long4.class, Long4.class, Long4.class),
+            true,
+            0xC4, 0xE2, 0x7D, 0x01, 0xC1 // vphaddw ymm0,ymm0,ymm1
+    );
+    public static Long4 _mm256_hadd_epi16(Long4 l1, Long4 l2) throws Throwable {
+        return (Long4) _mm256_hadd_epi16.invokeExact(l1, l2);
+    }
+
+    private static final MethodHandle _mm256_extract_epi16_0 = jdk.internal.panama.CodeSnippet.make(
+            "_mm256_extract_epi16_0", MethodType.methodType(long.class, Long4.class /*esi*/),
+            true,
+            0xC5, 0xF9, 0xC5, 0xC0, 0x00  //vpextrw eax,xmm0,0x0
+    );
+    public static long _mm256_extract_epi16_0(Long4 l) throws Throwable {
+        return (long) _mm256_extract_epi16_0.invokeExact(l);
+    }
+
+    private static final MethodHandle _mm256_extract_epi16_15 = jdk.internal.panama.CodeSnippet.make(
+            "_mm256_extract_epi16_15", MethodType.methodType(long.class, Long4.class /*esi*/),
+            true,
+            0xC4, 0xE3, 0x7D, 0x39, 0xC0, 0x01, 0xC5, 0xF9, 0xC5, 0xC0, 0x07, 0xC5, 0xF8, 0x77// vmovdqu ymm0, YMMWORD PTR [rsi]
+    );
+    public static long _mm256_extract_epi16_15(Long4 l) throws Throwable {
+        return (long) _mm256_extract_epi16_15.invokeExact(l);
+    }
+//    _mm256_hadd_epi16
+
     private static final MethodHandle _mm256_loadu_si256 = jdk.internal.panama.CodeSnippet.make(
             "_mm256_loadu_si256", MethodType.methodType(Long4.class, long.class /*esi*/),
             true,
@@ -87,8 +124,7 @@ public class VectorIntrinsics {
             "_mm256_extract_epi32_0", MethodType.methodType(long.class, Long4.class /*esi*/),
             true,
             0xC4, 0xE3, 0x79, 0x16, 0xC0, 0x00, // vpextrd eax,xmm0,0x0
-            0x48, 0x98, // cdqe
-            0xC5, 0xF8, 0x77 // vzeroupper
+            0x48, 0x98 // cdqe
     );
     public static long _mm256_extract_epi32_0(Long4 l) throws Throwable {
         return (long) _mm256_extract_epi32_0.invokeExact(l);
@@ -99,8 +135,7 @@ public class VectorIntrinsics {
             true,
             0xC4, 0xE3, 0x7D, 0x39, 0xC0, 0x01, // vextracti128 xmm0,ymm0,0x1
             0xC4, 0xE3, 0x79, 0x16, 0xC0, 0x00, // vpextrd eax,xmm0,0x0
-            0x48, 0x98,   // cdqe
-            0xC5, 0xF8, 0x77 // vzeroupper
+            0x48, 0x98   // cdqe
     );
     public static long _mm256_extract_epi32_4(Long4 l) throws Throwable {
         return (long) _mm256_extract_epi32_4.invokeExact(l);
@@ -109,8 +144,7 @@ public class VectorIntrinsics {
     private static final MethodHandle _mm256_extract_epi64_0 = jdk.internal.panama.CodeSnippet.make(
             "_mm256_extract_epi64_0", MethodType.methodType(long.class, Long4.class /*esi*/),
             true,
-            0xC4, 0xE1, 0xF9, 0x7E, 0xC0, //  vmovq  rax,xmm0
-            0xC5, 0xF8, 0x77 // vzeroupper
+            0xC4, 0xE1, 0xF9, 0x7E, 0xC0 //  vmovq  rax,xmm0
     );
     public static long _mm256_extract_epi64_0(Long4 l) throws Throwable {
         return (long) _mm256_extract_epi64_0.invokeExact(l);

@@ -39,8 +39,8 @@ jmh {
     warmupIterations = 3
     timeOnIteration = '3s'
     resultFormat = 'CSV'
-    profilers = ['gc']
-//    profilers = ['perfasm']
+//    profilers = ['gc']
+    profilers = ['perfasm']
     iterations = 4
     fork = 1
 }
